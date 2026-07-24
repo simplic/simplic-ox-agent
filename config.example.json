@@ -1,0 +1,46 @@
+{
+  "application": {
+    "instance_name": "customer-site-01",
+    "environment": "development",
+    "log_level": "INFO",
+    "log_format": "json",
+    "log_file": "logs/simplic.ox-agent.log",
+    "module_directory": "src/simplic_ox_agent/modules",
+    "shutdown_timeout_seconds": 30
+  },
+  "simplic.ox": {
+    "environment": "staging",
+    "timeout_seconds": 30,
+    "verify_tls": true,
+    "authentication": {
+      "type": "bearer",
+      "token": "${SIMPLIC_OX_TOKEN}",
+      "api_key": null
+    },
+    "retry": {
+      "max_attempts": 3,
+      "initial_delay_seconds": 1,
+      "maximum_delay_seconds": 30
+    }
+  },
+  "settings": {
+    "customer_id": "customer-001",
+    "site_id": "warehouse-berlin",
+    "timezone": "Europe/Berlin"
+  },
+  "modules": [
+    {
+      "id": "example-logistics-export",
+      "module": "simplic_ox_agent.modules.example_module",
+      "enabled": true,
+      "schedule": {
+        "type": "interval",
+        "seconds": 300
+      },
+      "settings": {
+        "target_endpoint": "/api/integrations/logistics",
+        "batch_size": 100
+      }
+    }
+  ]
+}
