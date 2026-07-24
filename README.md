@@ -355,13 +355,19 @@ The `scripts/generate_client.py` script downloads an OpenAPI 3.x JSON spec and g
 ### Usage
 
 ```bash
+# Generate all clients defined in clients.json
+python scripts/generate_client.py --all
+
+# Generate a single client
 python scripts/generate_client.py --url URL --name NAME [OPTIONS]
 ```
 
 | Option | Description |
 |---|---|
-| `--url URL` | OpenAPI JSON spec URL (**required**) |
-| `--name NAME` | Client module name, e.g. `auth`, `user-profile` (**required**) |
+| `--all` | Generate every client listed in `clients.json` |
+| `--config FILE` | Path to `clients.json` (default: `<project-root>/clients.json`) |
+| `--url URL` | OpenAPI JSON spec URL (single-client mode) |
+| `--name NAME` | Client module name, e.g. `auth`, `user-profile` (single-client mode) |
 | `--out-dir PATH` | Path to the `clients/` package root (auto-detected by default) |
 | `--dry-run` | Print generated code without writing any files |
 | `--force` | Overwrite existing files without prompting |
@@ -369,12 +375,18 @@ python scripts/generate_client.py --url URL --name NAME [OPTIONS]
 ### Examples
 
 ```bash
-# Generate the auth client
+# Regenerate all clients from clients.json
+python scripts/generate_client.py --all --force
+
+# Preview all clients without writing files
+python scripts/generate_client.py --all --dry-run
+
+# Generate a single client
 python scripts/generate_client.py \
     --url https://oxs.simplic.io/auth-api/v1/swagger/v1/swagger.json \
     --name auth
 
-# Preview the output without writing files
+# Preview a single client without writing files
 python scripts/generate_client.py \
     --url https://oxs.simplic.io/user-api/v1/swagger/v1/swagger.json \
     --name user \
