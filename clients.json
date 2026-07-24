@@ -1,0 +1,32 @@
+{
+  "clients": [
+    {
+      "name": "auth",
+      "url": "https://oxs.simplic.io/auth-api/v1/swagger/v1/swagger.json"
+    },
+    {
+      "name": "contact",
+      "url": "https://oxs.simplic.io/contact-api/v1/swagger/v1/swagger.json"
+    },
+    {
+      "name": "erp",
+      "url": "https://oxs.simplic.io/erp-api/v1/swagger/v1/swagger.json"
+    },
+    {
+      "name": "telematic",
+      "url": "https://oxs.simplic.io/telematic-api/v1/swagger/v1/swagger.json"
+    },
+    {
+      "name": "organization",
+      "url": "https://oxs.simplic.io/organization-api/v1/swagger/v1/swagger.json"
+    },
+    {
+      "name": "vehicle",
+      "url": "https://oxs.simplic.io/vehicle-api/v2/swagger/v2/swagger.json"
+    },
+    {
+      "name": "logistics",
+      "url": "https://oxs.simplic.io/logistics-api/v2/swagger/v2/swagger.json"
+    }
+  ]
+}

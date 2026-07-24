@@ -23,6 +23,7 @@ from ..core.config import Config, load_config
 from ..core.context import ModuleContext
 from ..core.environment import SimplicOxEnvironment
 from ..core.http_client import create_http_client
+from ..core.local_store import LocalDataStore
 from ..core.logging_setup import log_startup, setup_logging
 
 app = typer.Typer(
@@ -207,6 +208,10 @@ async def _run_module_async(
         raise typer.Exit(1)
 
     async with create_http_client(cfg.simplic_ox) as http_client:
+        data_store = LocalDataStore(
+            data_dir=Path(cfg.application.data_directory),
+            module_id=module_cfg.id,
+        )
         context = ModuleContext(
             module_id=module_cfg.id,
             module_settings=module_cfg.settings,
@@ -216,5 +221,6 @@ async def _run_module_async(
             instance_name=cfg.application.instance_name,
             application_environment=cfg.application.application_environment,
             simplic_ox_environment=ox_env,
+            data_store=data_store,
         )
         await run_fn(context)

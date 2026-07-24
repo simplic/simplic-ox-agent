@@ -7,6 +7,7 @@ from typing import Any
 
 from .environment import SimplicOxEnvironment
 from .http_client import SimplicOxHttpClient
+from .local_store import LocalDataStore
 
 
 class ModuleContext:
@@ -36,6 +37,9 @@ class ModuleContext:
     simplic_ox_environment:
         The remote simplic.ox API environment (``staging`` or
         ``production``) that the HTTP client targets.
+    data:
+        Persistent local key-value store scoped to this module.  Data
+        is saved as JSON on disk and survives between runs.
     """
 
     __slots__ = (
@@ -47,6 +51,7 @@ class ModuleContext:
         "_instance_name",
         "_application_environment",
         "_simplic_ox_environment",
+        "_data_store",
     )
 
     def __init__(
@@ -60,6 +65,7 @@ class ModuleContext:
         instance_name: str,
         application_environment: str,
         simplic_ox_environment: SimplicOxEnvironment,
+        data_store: LocalDataStore,
     ) -> None:
         self._module_id = module_id
         self._module_settings = module_settings
@@ -69,6 +75,7 @@ class ModuleContext:
         self._instance_name = instance_name
         self._application_environment = application_environment
         self._simplic_ox_environment = simplic_ox_environment
+        self._data_store = data_store
 
     # ------------------------------------------------------------------
     # Read-only properties
@@ -108,3 +115,8 @@ class ModuleContext:
     def simplic_ox_environment(self) -> SimplicOxEnvironment:
         """Remote simplic.ox API environment (``staging`` or ``production``)."""
         return self._simplic_ox_environment
+
+    @property
+    def data(self) -> LocalDataStore:
+        """Persistent local key-value store scoped to this module."""
+        return self._data_store

@@ -120,6 +120,7 @@ class ApplicationConfig(BaseModel):
     log_format: Literal["json", "text"] = "json"
     log_file: str | None = None
     module_directory: str = "src/simplic_ox_agent/modules"
+    data_directory: str = "data"
     shutdown_timeout_seconds: int = 30
 
 

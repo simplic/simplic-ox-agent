@@ -123,6 +123,7 @@ The agent is configured via a single JSON file. The minimal required fields are 
 | `log_level` | string | `"INFO"` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
 | `log_format` | string | `"json"` | `"json"` for structured logs, `"text"` for human-readable |
 | `log_file` | string | null | Optional path for a log file; parent directories are created automatically |
+| `data_directory` | string | `"data"` | Directory where per-module local data files are stored |
 | `shutdown_timeout_seconds` | int | `30` | Graceful shutdown timeout |
 
 #### `simplic.ox`
@@ -253,6 +254,36 @@ async def run(context: ModuleContext) -> None:
 | `instance_name` | `str` | Agent installation name |
 | `application_environment` | `str` | Local deployment label |
 | `simplic_ox_environment` | `SimplicOxEnvironment` | Remote API environment |
+| `data` | `LocalDataStore` | Persistent local key-value store scoped to this module |
+
+### Local data store
+
+Each module gets a private `LocalDataStore` accessible via `context.data`. Data is persisted as a JSON file under `application.data_directory` (default: `data/`) and survives between runs.
+
+```python
+async def run(context: ModuleContext) -> None:
+    # Read a previously stored value (returns None if not set)
+    last_id = context.data.get("last_processed_id")
+
+    # … do work …
+    new_last_id = 42
+
+    # Persist for the next run
+    context.data.set("last_processed_id", new_last_id)
+```
+
+**API**
+
+| Method | Description |
+|---|---|
+| `get(key, default=None)` | Return the stored value, or `default` if absent |
+| `set(key, value)` | Store a JSON-serialisable value and write to disk |
+| `delete(key)` | Remove a key; no-op if absent |
+| `clear()` | Remove all keys and persist the empty state |
+| `all()` | Return a shallow copy of all key-value pairs |
+| `key in context.data` | Check whether a key exists |
+
+The backing file is `<data_directory>/<module_id>.json`. All values must be JSON-serialisable (strings, numbers, booleans, lists, dicts, or `None`).
 
 ### Module rules
 
@@ -266,6 +297,37 @@ Modules **must not**:
 - Hard-code a simplic.ox hostname
 - Build absolute simplic.ox URLs
 - Override the HTTP client's base URL or authentication headers
+
+### Using generated API clients
+
+Generated clients (see [Generating API clients](#generating-api-clients) below) wrap `context.http` and return typed Pydantic models. Import the client class, instantiate it with `context.http`, and call its async methods.
+
+```python
+from simplic_ox_agent.clients.auth import AuthClient
+from simplic_ox_agent.clients.logistics import LogisticsClient
+from simplic_ox_agent.core.context import ModuleContext
+
+
+async def run(context: ModuleContext) -> None:
+    auth = AuthClient(context.http)
+    login_result = await auth.login(
+        email=context.module_settings["email"],
+        password=context.module_settings["password"],
+    )
+
+    logistics = LogisticsClient(context.http)
+    batches = await logistics.get_pending_batches()
+    context.logger.info("Fetched batches", extra={"count": len(batches)})
+
+    # Persist progress using the local store
+    context.data.set("last_batch_id", batches[-1].id if batches else None)
+```
+
+Each client class:
+- Takes a `SimplicOxHttpClient` as its only constructor argument
+- Uses `_PREFIX` internally so modules never build absolute URLs
+- Calls `response.raise_for_status()` before parsing, so HTTP errors propagate as exceptions
+- Returns typed Pydantic models; `None` for endpoints with no response body
 
 ### Registering a module
 
@@ -285,6 +347,52 @@ Add an entry to the `modules` list in your configuration file:
   }
 }
 ```
+
+## Generating API clients
+
+The `scripts/generate_client.py` script downloads an OpenAPI 3.x JSON spec and generates a typed Python client package under `src/simplic_ox_agent/clients/<name>/`.
+
+### Usage
+
+```bash
+python scripts/generate_client.py --url URL --name NAME [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `--url URL` | OpenAPI JSON spec URL (**required**) |
+| `--name NAME` | Client module name, e.g. `auth`, `user-profile` (**required**) |
+| `--out-dir PATH` | Path to the `clients/` package root (auto-detected by default) |
+| `--dry-run` | Print generated code without writing any files |
+| `--force` | Overwrite existing files without prompting |
+
+### Examples
+
+```bash
+# Generate the auth client
+python scripts/generate_client.py \
+    --url https://oxs.simplic.io/auth-api/v1/swagger/v1/swagger.json \
+    --name auth
+
+# Preview the output without writing files
+python scripts/generate_client.py \
+    --url https://oxs.simplic.io/user-api/v1/swagger/v1/swagger.json \
+    --name user \
+    --dry-run
+```
+
+### What gets generated
+
+For `--name auth` the script creates:
+
+```
+src/simplic_ox_agent/clients/auth/
+    __init__.py     # re-exports AuthClient and all model classes
+    client.py       # AuthClient — one async method per endpoint
+    models.py       # Pydantic BaseModel classes from OpenAPI schemas
+```
+
+The client class name is derived from the `--name` argument (`auth` → `AuthClient`). Method names are derived from HTTP verb and path (`POST /Auth/login` → `login`). All response models are typed Pydantic classes; HTTP errors raise via `raise_for_status()`.
 
 ## Development
 
@@ -314,6 +422,8 @@ pytest -v
 simplic.ox/
 ├── config.example.json          # example configuration (always targets staging)
 ├── pyproject.toml
+├── scripts/
+│   └── generate_client.py       # generates typed clients from OpenAPI specs
 ├── src/
 │   └── simplic_ox_agent/
 │       ├── core/
@@ -321,11 +431,17 @@ simplic.ox/
 │       │   ├── config.py        # Pydantic configuration models
 │       │   ├── http_client.py   # SimplicOxHttpClient
 │       │   ├── context.py       # ModuleContext
+│       │   ├── local_store.py   # LocalDataStore — per-module persistent storage
 │       │   └── logging_setup.py # JSON formatter, startup logging
+│       ├── clients/
+│       │   ├── auth/            # generated: AuthClient
+│       │   ├── logistics/       # generated: LogisticsClient
+│       │   └── vehicle/         # generated: VehicleClient
 │       ├── modules/
 │       │   └── example_module.py
 │       └── cli/
 │           └── main.py          # validate / show-config / run
+├── data/                        # per-module local data (created at runtime)
 └── tests/
     ├── test_environment.py
     ├── test_config.py
